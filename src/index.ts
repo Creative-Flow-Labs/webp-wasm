@@ -2,6 +2,7 @@ import type {
   WebPConfig,
   Nullable,
   WebPAnimationFrame,
+  AnimationEncoderOptions,
   WebPDecodedImageData,
   DecodedWebPAnimationFrame,
 } from './types'
@@ -62,7 +63,8 @@ export const encodeAnimation = async (
   width: number,
   height: number,
   hasAlpha: boolean,
-  frames: WebPAnimationFrame[]
+  frames: WebPAnimationFrame[],
+  options?: AnimationEncoderOptions
 ): Promise<Nullable<Uint8Array>> => {
   const module = await Module()
   const durations: number[] = []
@@ -77,7 +79,19 @@ export const encodeAnimation = async (
     offset += frame.data.length
     durations.push(frame.duration)
   })
-  return module.encodeAnimation(width, height, hasAlpha, durations, data)
+
+  // Convert JS options to C++ struct format with defaults
+  const opts = {
+    minimize_size: options?.minimizeSize ? 1 : 0,
+    kmin: options?.kmin ?? 0,
+    kmax: options?.kmax ?? 0,
+    quality: options?.quality ?? 80,
+    lossless: options?.lossless ? 1 : 0,
+    method: options?.method ?? 4,
+    loop_count: options?.loopCount ?? 0,
+  }
+
+  return module.encodeAnimation(width, height, hasAlpha, durations, data, opts)
 }
 
 export const decoderVersion = async (): Promise<string> => {

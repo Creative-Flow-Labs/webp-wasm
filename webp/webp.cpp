@@ -10,6 +10,15 @@ EMSCRIPTEN_BINDINGS(module)
 		.field("lossless", &SimpleWebPConfig::lossless)
 		.field("quality", &SimpleWebPConfig::quality);
 
+	emscripten::value_object<AnimationEncoderOptions>("AnimationEncoderOptions")
+		.field("minimize_size", &AnimationEncoderOptions::minimize_size)
+		.field("kmin", &AnimationEncoderOptions::kmin)
+		.field("kmax", &AnimationEncoderOptions::kmax)
+		.field("quality", &AnimationEncoderOptions::quality)
+		.field("lossless", &AnimationEncoderOptions::lossless)
+		.field("method", &AnimationEncoderOptions::method)
+		.field("loop_count", &AnimationEncoderOptions::loop_count);
+
 	function("encoder_version", &encoder_version);
 	function("encodeRGB", &encodeRGB);
 	function("encodeRGBA", &encodeRGBA);

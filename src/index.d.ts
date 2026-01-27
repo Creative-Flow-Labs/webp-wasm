@@ -2,6 +2,7 @@ import type {
   WebPConfig,
   Nullable,
   WebPAnimationFrame,
+  AnimationEncoderOptions,
   WebPDecodedImageData,
   DecodedWebPAnimationFrame,
 } from './types'
@@ -29,7 +30,8 @@ export declare const encodeAnimation: (
   width: number,
   height: number,
   hasAlpha: boolean,
-  frames: WebPAnimationFrame[]
+  frames: WebPAnimationFrame[],
+  options?: AnimationEncoderOptions
 ) => Promise<Nullable<Uint8Array>>
 export declare const decoderVersion: () => Promise<string>
 export declare const decodeRGB: (data: Uint8Array) => Promise<Nullable<WebPDecodedImageData>>

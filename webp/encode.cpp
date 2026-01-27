@@ -63,20 +63,33 @@ val encode(std::string data, int width, int height, bool has_alpha, SimpleWebPCo
 	return encoded_data;
 }
 
-val encodeAnimation(int width, int height, bool has_alpha, val durations, std::string data)
+val encodeAnimation(int width, int height, bool has_alpha, val durations, std::string data, AnimationEncoderOptions options)
 {
 	WebPAnimEncoderOptions enc_options;
 	WebPAnimEncoderOptionsInit(&enc_options);
+
+	// Apply encoder-level options
+	enc_options.minimize_size = options.minimize_size;
+	if (options.kmin > 0) enc_options.kmin = options.kmin;
+	if (options.kmax > 0) enc_options.kmax = options.kmax;
+
 	WebPAnimEncoder* enc = WebPAnimEncoderNew(width, height, &enc_options);
 	auto frame_durations = vecFromJSArray<int>(durations);
 	int frames = frame_durations.size();
 	int frame_data_size = (has_alpha ? 4 : 3) * width * height;
 	int stride = (has_alpha ? 4 : 3) * width;
-  int timestamp = 0;
+	int timestamp = 0;
+
 	for (int i = 0; i < frames; i++)
 	{
 		WebPConfig config;
 		WebPConfigInit(&config);
+
+		// Apply per-frame encoding options
+		config.quality = options.quality;
+		config.lossless = options.lossless;
+		config.method = options.method;
+
 		WebPPicture pic;
 		if (!WebPPictureInit(&pic))
 		{
@@ -92,15 +105,38 @@ val encodeAnimation(int width, int height, bool has_alpha, val durations, std::s
 			? WebPPictureImportRGBA(&pic, (uint8_t*)pic_data.c_str(), stride)
 			: WebPPictureImportRGB(&pic, (uint8_t*)pic_data.c_str(), stride);
 		int success = WebPAnimEncoderAdd(enc, &pic, timestamp, &config);
-    timestamp = timestamp + frame_durations[i];
+		timestamp = timestamp + frame_durations[i];
 		if (!success) {
 			return val::null();
 		}
 	}
 
+	// Add null frame to signal end of animation
+	WebPAnimEncoderAdd(enc, NULL, timestamp, NULL);
+
 	WebPData webp_data;
+	WebPDataInit(&webp_data);
 	WebPAnimEncoderAssemble(enc, &webp_data);
-	val encoded_data = Uint8Array.new_(typed_memory_view(webp_data.size, webp_data.bytes));
 	WebPAnimEncoderDelete(enc);
+
+	// Set loop count via WebPMux
+	WebPMux* mux = WebPMuxCreate(&webp_data, 1);
+	if (mux) {
+		WebPMuxAnimParams params;
+		WebPMuxGetAnimationParams(mux, &params);
+		params.loop_count = options.loop_count;
+		WebPMuxSetAnimationParams(mux, &params);
+
+		WebPData output;
+		WebPDataInit(&output);
+		WebPMuxAssemble(mux, &output);
+		WebPMuxDelete(mux);
+		WebPDataClear(&webp_data);
+
+		val encoded_data = Uint8Array.new_(typed_memory_view(output.size, output.bytes));
+		return encoded_data;
+	}
+
+	val encoded_data = Uint8Array.new_(typed_memory_view(webp_data.size, webp_data.bytes));
 	return encoded_data;
 }

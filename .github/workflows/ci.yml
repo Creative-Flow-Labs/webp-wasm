@@ -1,43 +1,55 @@
-# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
-
-name: CI
+name: Build WASM
 
 on:
   push:
     branches: ['main']
   pull_request:
     branches: ['main']
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [16.x, 18.x, 20.x]
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: recursive
 
-      - name: setup node
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.56
+
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 20
           cache: 'npm'
 
-      - name: install dependencies
+      - name: Install dependencies
         run: npm install
 
-      - name: setup emscripten
-        run: cd emsdk && ./emsdk install latest && ./emsdk activate latest && cd ..
+      - name: Build WASM (ESM)
+        run: npm run build-wasm:esm
 
-      - name: build esm
-        run: npm run build:esm --if-present
+      - name: Build TypeScript (ESM)
+        run: |
+          npx tsc -m ES6 --outDir ./dist/esm
+          cp -r src/*.d.ts dist/
 
-      - name: build cjs
-        run: npm run build:cjs --if-present
+      - name: Build WASM (CJS)
+        run: npm run build-wasm:cjs
 
-      - name: test
+      - name: Build TypeScript (CJS)
+        run: npx tsc -m commonjs --outDir ./dist/cjs
+
+      - name: Run tests
         run: npm run test
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-webp-dist
+          path: dist/
+          retention-days: 90
