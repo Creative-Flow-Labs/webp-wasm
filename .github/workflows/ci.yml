@@ -16,11 +16,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Emscripten
-        uses: mymindstorm/setup-emsdk@v14
-        with:
-          version: 3.1.56
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -30,8 +25,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Setup Emscripten (local submodule)
+        run: |
+          cd emsdk
+          ./emsdk install 3.1.56
+          ./emsdk activate 3.1.56
+          cd ..
+
       - name: Build WASM (ESM)
-        run: npm run build-wasm:esm
+        run: |
+          source emsdk/emsdk_env.sh
+          npm run build-wasm:esm
 
       - name: Build TypeScript (ESM)
         run: |
@@ -39,7 +43,9 @@ jobs:
           cp -r src/*.d.ts dist/
 
       - name: Build WASM (CJS)
-        run: npm run build-wasm:cjs
+        run: |
+          source emsdk/emsdk_env.sh
+          npm run build-wasm:cjs
 
       - name: Build TypeScript (CJS)
         run: npx tsc -m commonjs --outDir ./dist/cjs
