@@ -1,5 +1,6 @@
 #include <string.h>
 #include <vector>
+#include <stdio.h>
 #include "version.h"
 #include "encode.h"
 
@@ -114,6 +115,7 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 {
 	auto it = g_encoders.find(handle);
 	if (it == g_encoders.end() || !it->second->encoder) {
+		printf("[addFrameToEncoder] Invalid handle or encoder: handle=%d\n", handle);
 		return 0;  // Invalid handle or encoder
 	}
 
@@ -122,13 +124,17 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 	// Validate data size
 	int channels = state->has_alpha ? 4 : 3;
 	size_t expected_size = (size_t)state->width * state->height * channels;
+	printf("[addFrameToEncoder] handle=%d, data_size=%zu, expected=%zu, width=%d, height=%d, channels=%d\n",
+		handle, rgba_data.size(), expected_size, state->width, state->height, channels);
+
 	if (rgba_data.size() != expected_size) {
-		// Data size mismatch
+		printf("[addFrameToEncoder] Data size mismatch!\n");
 		return 0;
 	}
 
 	WebPPicture pic;
 	if (!WebPPictureInit(&pic)) {
+		printf("[addFrameToEncoder] WebPPictureInit failed\n");
 		return 0;
 	}
 
@@ -138,6 +144,7 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 
 	// Allocate picture memory like the working encode() function does
 	if (!WebPPictureAlloc(&pic)) {
+		printf("[addFrameToEncoder] WebPPictureAlloc failed\n");
 		WebPPictureFree(&pic);
 		return 0;
 	}
@@ -149,11 +156,24 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 		: WebPPictureImportRGB(&pic, (uint8_t*)rgba_data.c_str(), stride);
 
 	if (!success) {
+		printf("[addFrameToEncoder] WebPPictureImport failed, error_code=%d\n", pic.error_code);
 		WebPPictureFree(&pic);
 		return 0;
 	}
 
+	printf("[addFrameToEncoder] Calling WebPAnimEncoderAdd: timestamp=%d, config.quality=%.1f, config.lossless=%d, config.method=%d\n",
+		state->timestamp_ms, state->config.quality, state->config.lossless, state->config.method);
+
 	success = WebPAnimEncoderAdd(state->encoder, &pic, state->timestamp_ms, &state->config);
+
+	if (!success) {
+		const char* error = WebPAnimEncoderGetError(state->encoder);
+		printf("[addFrameToEncoder] WebPAnimEncoderAdd FAILED! pic.error_code=%d, encoder_error=%s\n",
+			pic.error_code, error ? error : "null");
+	} else {
+		printf("[addFrameToEncoder] WebPAnimEncoderAdd SUCCESS\n");
+	}
+
 	state->timestamp_ms += duration_ms;
 
 	WebPPictureFree(&pic);
