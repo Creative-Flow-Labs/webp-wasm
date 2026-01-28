@@ -27,10 +27,10 @@ EMSCRIPTEN_BINDINGS(module)
 	function("encode", &encode);
 
 	// Streaming encoder API (replaces batch encodeAnimation)
-	function("createStreamingEncoder", &createStreamingEncoder);
-	function("addFrameToEncoder", &addFrameToEncoder);
-	function("finalizeEncoder", &finalizeEncoder);
-	function("deleteEncoder", &deleteEncoder);
+	emscripten::function("createStreamingEncoder", &createStreamingEncoder);
+	emscripten::function("addFrameToEncoder", &addFrameToEncoder);
+	emscripten::function("finalizeEncoder", &finalizeEncoder);
+	emscripten::function("deleteEncoder", &deleteEncoder);
 
 	function("decoder_version", &decoder_version);
 	function("decodeRGB", &decodeRGB);
