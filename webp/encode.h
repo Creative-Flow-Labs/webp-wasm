@@ -2,6 +2,8 @@
 #include "src/webp/mux.h"
 #include "emscripten/emscripten.h"
 #include "emscripten/val.h"
+#include <map>
+#include <memory>
 
 struct SimpleWebPConfig
 {
@@ -22,6 +24,19 @@ struct AnimationEncoderOptions
     int allow_mixed;    // 0 or 1 — allow mixing lossy+lossless per frame
 };
 
+// Streaming encoder state - stored in global registry
+struct StreamingEncoderState
+{
+    WebPAnimEncoder* encoder;
+    WebPConfig config;
+    int width;
+    int height;
+    bool has_alpha;
+    int timestamp_ms;
+    int loop_count;
+    int allow_mixed;
+};
+
 emscripten::val encoder_version();
 
 emscripten::val encodeRGB(std::string rgb, int width, int height, int quality_factor);
@@ -30,4 +45,8 @@ emscripten::val encodeRGBA(std::string rgba, int width, int height, int quality_
 
 emscripten::val encode(std::string data, int width, int height, bool use_alpha, SimpleWebPConfig config);
 
-emscripten::val encodeAnimation(int width, int height, bool has_alpha, emscripten::val durations, std::string data, AnimationEncoderOptions options);
+// Streaming encoder API (replaces batch encodeAnimation)
+int createStreamingEncoder(int width, int height, bool has_alpha, AnimationEncoderOptions options);
+int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms);
+emscripten::val finalizeEncoder(int handle);
+void deleteEncoder(int handle);

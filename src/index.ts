@@ -1,7 +1,6 @@
 import type {
   WebPConfig,
   Nullable,
-  WebPAnimationFrame,
   AnimationEncoderOptions,
   WebPDecodedImageData,
   DecodedWebPAnimationFrame,
@@ -59,26 +58,16 @@ export const encode = async (
   return module.encode(data, width, height, hasAlpha, webpConfig)
 }
 
-export const encodeAnimation = async (
+// Streaming encoder API (replaces batch encodeAnimation)
+// Returns an encoder handle (integer) for use with other streaming functions
+
+export const createStreamingEncoder = async (
   width: number,
   height: number,
   hasAlpha: boolean,
-  frames: WebPAnimationFrame[],
   options?: AnimationEncoderOptions
-): Promise<Nullable<Uint8Array>> => {
+): Promise<number> => {
   const module = await Module()
-  const durations: number[] = []
-  const dataLength = frames.reduce((acc, frame) => {
-    acc += frame.data.length
-    return acc
-  }, 0)
-  const data: Uint8Array = new Uint8Array(dataLength)
-  let offset = 0
-  frames.forEach((frame) => {
-    data.set(frame.data, offset)
-    offset += frame.data.length
-    durations.push(frame.duration)
-  })
 
   // Convert JS options to C++ struct format with defaults
   const opts = {
@@ -93,7 +82,36 @@ export const encodeAnimation = async (
     allow_mixed: options?.allowMixed ? 1 : 0,
   }
 
-  return module.encodeAnimation(width, height, hasAlpha, durations, data, opts)
+  const handle = module.createStreamingEncoder(width, height, hasAlpha, opts)
+  if (handle === 0) {
+    throw new Error('Failed to create WebP streaming encoder')
+  }
+  return handle
+}
+
+export const addFrameToEncoder = async (
+  handle: number,
+  rgbaData: Uint8Array,
+  durationMs: number
+): Promise<boolean> => {
+  const module = await Module()
+  // Pass Uint8Array directly - Emscripten auto-converts to std::string
+  const result = module.addFrameToEncoder(handle, rgbaData, durationMs)
+  return result === 1
+}
+
+export const finalizeEncoder = async (
+  handle: number
+): Promise<Nullable<Uint8Array>> => {
+  const module = await Module()
+  return module.finalizeEncoder(handle)
+}
+
+export const deleteEncoder = async (
+  handle: number
+): Promise<void> => {
+  const module = await Module()
+  module.deleteEncoder(handle)
 }
 
 export const decoderVersion = async (): Promise<string> => {

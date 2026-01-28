@@ -5,6 +5,10 @@
 using namespace emscripten;
 thread_local val Uint8Array = val::global("Uint8Array");
 
+// Global registry for streaming encoders (opaque handle pattern)
+static std::map<int, std::unique_ptr<StreamingEncoderState>> g_encoders;
+static int g_nextHandle = 1;
+
 val encoder_version()
 {
 	return get_version(WebPGetEncoderVersion());
@@ -63,70 +67,109 @@ val encode(std::string data, int width, int height, bool has_alpha, SimpleWebPCo
 	return encoded_data;
 }
 
-val encodeAnimation(int width, int height, bool has_alpha, val durations, std::string data, AnimationEncoderOptions options)
+// Streaming encoder API implementation
+
+int createStreamingEncoder(int width, int height, bool has_alpha, AnimationEncoderOptions options)
 {
+	auto state = std::make_unique<StreamingEncoderState>();
+	state->width = width;
+	state->height = height;
+	state->has_alpha = has_alpha;
+	state->timestamp_ms = 0;
+	state->loop_count = options.loop_count;
+	state->allow_mixed = options.allow_mixed;
+
+	// Init encoder options
 	WebPAnimEncoderOptions enc_options;
 	WebPAnimEncoderOptionsInit(&enc_options);
-
-	// Apply encoder-level options
 	enc_options.minimize_size = options.minimize_size;
 	enc_options.allow_mixed = options.allow_mixed;
 	if (options.kmin > 0) enc_options.kmin = options.kmin;
 	if (options.kmax > 0) enc_options.kmax = options.kmax;
 
-	WebPAnimEncoder* enc = WebPAnimEncoderNew(width, height, &enc_options);
-	auto frame_durations = vecFromJSArray<int>(durations);
-	int frames = frame_durations.size();
-	int frame_data_size = (has_alpha ? 4 : 3) * width * height;
-	int stride = (has_alpha ? 4 : 3) * width;
-	int timestamp = 0;
+	// Init per-frame config (stored for reuse)
+	WebPConfigInit(&state->config);
+	state->config.quality = options.quality;
+	state->config.lossless = options.lossless;
+	state->config.method = options.method;
+	state->config.alpha_quality = options.alpha_quality;
 
-	for (int i = 0; i < frames; i++)
-	{
-		WebPConfig config;
-		WebPConfigInit(&config);
-
-		// Apply per-frame encoding options
-		config.quality = options.quality;
-		config.lossless = options.lossless;
-		config.method = options.method;
-		config.alpha_quality = options.alpha_quality;
-
-		WebPPicture pic;
-		if (!WebPPictureInit(&pic))
-		{
-			WebPPictureFree(&pic);
-			return val::null();
-		}
-		auto pos = i * frame_data_size;
-		auto pic_data = data.substr(pos, frame_data_size);
-		pic.use_argb = 1;
-		pic.width = width;
-		pic.height = height;
-		has_alpha
-			? WebPPictureImportRGBA(&pic, (uint8_t*)pic_data.c_str(), stride)
-			: WebPPictureImportRGB(&pic, (uint8_t*)pic_data.c_str(), stride);
-		int success = WebPAnimEncoderAdd(enc, &pic, timestamp, &config);
-		timestamp = timestamp + frame_durations[i];
-		if (!success) {
-			return val::null();
-		}
+	state->encoder = WebPAnimEncoderNew(width, height, &enc_options);
+	if (!state->encoder) {
+		return 0;  // 0 = invalid handle
 	}
 
-	// Add null frame to signal end of animation
-	WebPAnimEncoderAdd(enc, NULL, timestamp, NULL);
+	int handle = g_nextHandle++;
+	g_encoders[handle] = std::move(state);
+	return handle;
+}
+
+int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
+{
+	auto it = g_encoders.find(handle);
+	if (it == g_encoders.end() || !it->second->encoder) {
+		return 0;  // Invalid handle or encoder
+	}
+
+	StreamingEncoderState* state = it->second.get();
+
+	WebPPicture pic;
+	if (!WebPPictureInit(&pic)) {
+		return 0;
+	}
+
+	pic.use_argb = 1;
+	pic.width = state->width;
+	pic.height = state->height;
+
+	int stride = (state->has_alpha ? 4 : 3) * state->width;
+	int success = state->has_alpha
+		? WebPPictureImportRGBA(&pic, (uint8_t*)rgba_data.c_str(), stride)
+		: WebPPictureImportRGB(&pic, (uint8_t*)rgba_data.c_str(), stride);
+
+	if (!success) {
+		WebPPictureFree(&pic);
+		return 0;
+	}
+
+	success = WebPAnimEncoderAdd(state->encoder, &pic, state->timestamp_ms, &state->config);
+	state->timestamp_ms += duration_ms;
+
+	WebPPictureFree(&pic);
+	return success;
+}
+
+val finalizeEncoder(int handle)
+{
+	auto it = g_encoders.find(handle);
+	if (it == g_encoders.end() || !it->second->encoder) {
+		return val::null();
+	}
+
+	StreamingEncoderState* state = it->second.get();
+
+	// Signal end with null frame
+	WebPAnimEncoderAdd(state->encoder, NULL, state->timestamp_ms, NULL);
 
 	WebPData webp_data;
 	WebPDataInit(&webp_data);
-	WebPAnimEncoderAssemble(enc, &webp_data);
-	WebPAnimEncoderDelete(enc);
+	if (!WebPAnimEncoderAssemble(state->encoder, &webp_data)) {
+		// Cleanup encoder
+		WebPAnimEncoderDelete(state->encoder);
+		g_encoders.erase(it);
+		return val::null();
+	}
 
-	// Set loop count via WebPMux
+	// Cleanup the anim encoder (no longer needed)
+	WebPAnimEncoderDelete(state->encoder);
+	state->encoder = nullptr;
+
+	// Apply loop count via WebPMux
 	WebPMux* mux = WebPMuxCreate(&webp_data, 1);
 	if (mux) {
 		WebPMuxAnimParams params;
 		WebPMuxGetAnimationParams(mux, &params);
-		params.loop_count = options.loop_count;
+		params.loop_count = state->loop_count;
 		WebPMuxSetAnimationParams(mux, &params);
 
 		WebPData output;
@@ -136,9 +179,35 @@ val encodeAnimation(int width, int height, bool has_alpha, val durations, std::s
 		WebPDataClear(&webp_data);
 
 		val encoded_data = Uint8Array.new_(typed_memory_view(output.size, output.bytes));
+
+		// Auto-cleanup: remove from registry after finalize
+		g_encoders.erase(it);
+
+		// Note: WebPDataClear(&output) would invalidate the typed_memory_view
+		// The JS side must copy the data before it can be cleared
+		// Emscripten's Uint8Array.new_() creates a copy, so we're safe
+		WebPDataClear(&output);
+
 		return encoded_data;
 	}
 
 	val encoded_data = Uint8Array.new_(typed_memory_view(webp_data.size, webp_data.bytes));
+
+	// Auto-cleanup: remove from registry after finalize
+	g_encoders.erase(it);
+
+	WebPDataClear(&webp_data);
+
 	return encoded_data;
+}
+
+void deleteEncoder(int handle)
+{
+	auto it = g_encoders.find(handle);
+	if (it != g_encoders.end()) {
+		if (it->second->encoder) {
+			WebPAnimEncoderDelete(it->second->encoder);
+		}
+		g_encoders.erase(it);
+	}
 }

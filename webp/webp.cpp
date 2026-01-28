@@ -25,7 +25,12 @@ EMSCRIPTEN_BINDINGS(module)
 	function("encodeRGB", &encodeRGB);
 	function("encodeRGBA", &encodeRGBA);
 	function("encode", &encode);
-	function("encodeAnimation", &encodeAnimation);
+
+	// Streaming encoder API (replaces batch encodeAnimation)
+	function("createStreamingEncoder", &createStreamingEncoder);
+	function("addFrameToEncoder", &addFrameToEncoder);
+	function("finalizeEncoder", &finalizeEncoder);
+	function("deleteEncoder", &deleteEncoder);
 
 	function("decoder_version", &decoder_version);
 	function("decodeRGB", &decodeRGB);
