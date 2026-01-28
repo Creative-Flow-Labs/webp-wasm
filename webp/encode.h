@@ -4,6 +4,7 @@
 #include "emscripten/val.h"
 #include <map>
 #include <memory>
+#include <string>
 
 struct SimpleWebPConfig
 {
