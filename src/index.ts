@@ -8,6 +8,16 @@ import type {
 // @ts-ignore
 import Module from './webp-wasm'
 
+// Cache the module instance to preserve global state across calls
+let cachedModule: any = null
+
+const getModule = async () => {
+  if (!cachedModule) {
+    cachedModule = await Module()
+  }
+  return cachedModule
+}
+
 // default webp config
 const defaultWebpConfig: WebPConfig = {
   lossless: 0,
@@ -15,7 +25,7 @@ const defaultWebpConfig: WebPConfig = {
 }
 
 export const encoderVersion = async (): Promise<string> => {
-  const module = await Module()
+  const module = await getModule()
   return module.encoder_version()
 }
 
@@ -25,7 +35,7 @@ export const encodeRGB = async (
   height: number,
   quality?: number
 ): Promise<Nullable<Uint8Array>> => {
-  const module = await Module()
+  const module = await getModule()
   quality = typeof quality !== 'number' ? 100 : Math.min(100, Math.max(0, quality))
   return module.encodeRGB(rgb, width, height, quality)
 }
@@ -36,7 +46,7 @@ export const encodeRGBA = async (
   height: number,
   quality?: number
 ): Promise<Nullable<Uint8Array>> => {
-  const module = await Module()
+  const module = await getModule()
   quality = typeof quality !== 'number' ? 100 : Math.min(100, Math.max(0, quality))
   return module.encodeRGBA(rgba, width, height, quality)
 }
@@ -48,7 +58,7 @@ export const encode = async (
   hasAlpha: boolean,
   config: Partial<WebPConfig>
 ): Promise<Nullable<Uint8Array>> => {
-  const module = await Module()
+  const module = await getModule()
   const webpConfig = {
     ...defaultWebpConfig,
     ...config,
@@ -67,7 +77,7 @@ export const createStreamingEncoder = async (
   hasAlpha: boolean,
   options?: AnimationEncoderOptions
 ): Promise<number> => {
-  const module = await Module()
+  const module = await getModule()
 
   // Convert JS options to C++ struct format with defaults
   const opts = {
@@ -94,7 +104,7 @@ export const addFrameToEncoder = async (
   rgbaData: Uint8Array,
   durationMs: number
 ): Promise<boolean> => {
-  const module = await Module()
+  const module = await getModule()
   // Pass Uint8Array directly - Emscripten auto-converts to std::string
   const result = module.addFrameToEncoder(handle, rgbaData, durationMs)
   return result === 1
@@ -103,14 +113,14 @@ export const addFrameToEncoder = async (
 export const finalizeEncoder = async (
   handle: number
 ): Promise<Nullable<Uint8Array>> => {
-  const module = await Module()
+  const module = await getModule()
   return module.finalizeEncoder(handle)
 }
 
 export const deleteEncoder = async (
   handle: number
 ): Promise<void> => {
-  const module = await Module()
+  const module = await getModule()
   module.deleteEncoder(handle)
 }
 
@@ -129,7 +139,7 @@ export const encodeAnimation = async (
   frames: WebPAnimationFrame[],
   options?: AnimationEncoderOptions
 ): Promise<Nullable<Uint8Array>> => {
-  const module = await Module()
+  const module = await getModule()
 
   // Convert JS options to C++ struct format with defaults
   const opts = {
@@ -148,23 +158,23 @@ export const encodeAnimation = async (
 }
 
 export const decoderVersion = async (): Promise<string> => {
-  const module = await Module()
+  const module = await getModule()
   return module.decoder_version()
 }
 
 export const decodeRGB = async (data: Uint8Array): Promise<Nullable<WebPDecodedImageData>> => {
-  const module = await Module()
+  const module = await getModule()
   return module.decodeRGB(data)
 }
 
 export const decodeRGBA = async (data: Uint8Array): Promise<Nullable<WebPDecodedImageData>> => {
-  const module = await Module()
+  const module = await getModule()
   return module.decodeRGBA(data)
 }
 
 // TODO:
 // export const decode = async (data: Uint8Array, hasAlpha: boolean) => {
-// 	const module = await Module()
+// 	const module = await getModule()
 // 	return module.decode(data, hasAlpha)
 // }
 
@@ -172,6 +182,6 @@ export const decodeAnimation = async (
   data: Uint8Array,
   hasAlpha: boolean
 ): Promise<Nullable<DecodedWebPAnimationFrame[]>> => {
-  const module = await Module()
+  const module = await getModule()
   return module.decodeAnimation(data, hasAlpha)
 }
