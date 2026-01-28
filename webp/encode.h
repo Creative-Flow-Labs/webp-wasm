@@ -19,6 +19,7 @@ struct AnimationEncoderOptions
     int method;         // 0-6 (0=fast, 6=slowest/best compression)
     int loop_count;     // 0 = infinite, N = loop N times
     int alpha_quality;  // 0-100 (0=smallest, 100=lossless). Default: 100
+    int allow_mixed;    // 0 or 1 — allow mixing lossy+lossless per frame
 };
 
 emscripten::val encoder_version();

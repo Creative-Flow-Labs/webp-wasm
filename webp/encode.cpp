@@ -70,6 +70,7 @@ val encodeAnimation(int width, int height, bool has_alpha, val durations, std::s
 
 	// Apply encoder-level options
 	enc_options.minimize_size = options.minimize_size;
+	enc_options.allow_mixed = options.allow_mixed;
 	if (options.kmin > 0) enc_options.kmin = options.kmin;
 	if (options.kmax > 0) enc_options.kmax = options.kmax;
 

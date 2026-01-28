@@ -18,7 +18,8 @@ EMSCRIPTEN_BINDINGS(module)
 		.field("lossless", &AnimationEncoderOptions::lossless)
 		.field("method", &AnimationEncoderOptions::method)
 		.field("loop_count", &AnimationEncoderOptions::loop_count)
-		.field("alpha_quality", &AnimationEncoderOptions::alpha_quality);
+		.field("alpha_quality", &AnimationEncoderOptions::alpha_quality)
+		.field("allow_mixed", &AnimationEncoderOptions::allow_mixed);
 
 	function("encoder_version", &encoder_version);
 	function("encodeRGB", &encodeRGB);
