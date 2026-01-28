@@ -113,8 +113,8 @@ describe('encode', () => {
       ctx.closePath()
       ctx.fill()
       const imageData = ctx.getImageData(0, 0, 100, 100)
-      // Convert to regular Array since vecFromJSArray doesn't support TypedArrays
-      const success = await addFrameToEncoder(handle, Array.from(imageData.data), 1000)
+      // Pass ArrayBuffer like the working encodeRGBA function expects
+      const success = await addFrameToEncoder(handle, imageData.data.buffer, 1000)
       expect(success).toBe(true)
     }
 
@@ -151,8 +151,8 @@ describe('encode', () => {
       ctx.closePath()
       ctx.fill()
       const imageData = ctx.getImageData(0, 0, 100, 100)
-      // Convert to regular Array since vecFromJSArray doesn't support TypedArrays
-      const success = await addFrameToEncoder(handle, Array.from(imageData.data), 1000)
+      // Pass ArrayBuffer like the working encodeRGBA function expects
+      const success = await addFrameToEncoder(handle, imageData.data.buffer, 1000)
       expect(success).toBe(true)
     }
 

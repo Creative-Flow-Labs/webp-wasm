@@ -105,7 +105,7 @@ int createStreamingEncoder(int width, int height, bool has_alpha, AnimationEncod
 	return handle;
 }
 
-int addFrameToEncoder(int handle, val rgba_data, int duration_ms)
+int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 {
 	auto it = g_encoders.find(handle);
 	if (it == g_encoders.end() || !it->second->encoder) {
@@ -114,13 +114,10 @@ int addFrameToEncoder(int handle, val rgba_data, int duration_ms)
 
 	StreamingEncoderState* state = it->second.get();
 
-	// Convert JavaScript typed array to C++ vector using Emscripten's built-in helper
-	std::vector<uint8_t> buffer = vecFromJSArray<uint8_t>(rgba_data);
-
 	// Validate data size
 	int channels = state->has_alpha ? 4 : 3;
 	size_t expected_size = (size_t)state->width * state->height * channels;
-	if (buffer.size() != expected_size) {
+	if (rgba_data.size() != expected_size) {
 		// Data size mismatch
 		return 0;
 	}
@@ -136,8 +133,8 @@ int addFrameToEncoder(int handle, val rgba_data, int duration_ms)
 
 	int stride = channels * state->width;
 	int success = state->has_alpha
-		? WebPPictureImportRGBA(&pic, buffer.data(), stride)
-		: WebPPictureImportRGB(&pic, buffer.data(), stride);
+		? WebPPictureImportRGBA(&pic, (uint8_t*)rgba_data.data(), stride)
+		: WebPPictureImportRGB(&pic, (uint8_t*)rgba_data.data(), stride);
 
 	if (!success) {
 		WebPPictureFree(&pic);

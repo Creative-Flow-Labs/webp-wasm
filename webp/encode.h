@@ -48,6 +48,6 @@ emscripten::val encode(std::string data, int width, int height, bool use_alpha, 
 
 // Streaming encoder API (replaces batch encodeAnimation)
 int createStreamingEncoder(int width, int height, bool has_alpha, AnimationEncoderOptions options);
-int addFrameToEncoder(int handle, emscripten::val rgba_data, int duration_ms);
+int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms);
 emscripten::val finalizeEncoder(int handle);
 void deleteEncoder(int handle);
