@@ -89,6 +89,7 @@ export const encodeAnimation = async (
     lossless: options?.lossless ? 1 : 0,
     method: options?.method ?? 4,
     loop_count: options?.loopCount ?? 0,
+    alpha_quality: options?.alphaQuality ?? 100,
   }
 
   return module.encodeAnimation(width, height, hasAlpha, durations, data, opts)

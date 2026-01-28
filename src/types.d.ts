@@ -27,6 +27,7 @@ export interface AnimationEncoderOptions {
 	lossless?: boolean        // Lossless encoding (default: false)
 	method?: number           // 0-6 compression method (default: 4)
 	loopCount?: number        // 0 = infinite, N = loop N times (default: 0)
+	alphaQuality?: number     // 0-100 (0=smallest, 100=lossless, default: 100)
 }
 
 export type Nullable<T> = T | null

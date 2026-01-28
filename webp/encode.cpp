@@ -89,6 +89,7 @@ val encodeAnimation(int width, int height, bool has_alpha, val durations, std::s
 		config.quality = options.quality;
 		config.lossless = options.lossless;
 		config.method = options.method;
+		config.alpha_quality = options.alpha_quality;
 
 		WebPPicture pic;
 		if (!WebPPictureInit(&pic))
