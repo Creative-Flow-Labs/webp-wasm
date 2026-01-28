@@ -114,22 +114,16 @@ int addFrameToEncoder(int handle, val rgba_data, int duration_ms)
 
 	StreamingEncoderState* state = it->second.get();
 
-	// Get length from the JavaScript typed array or ArrayBuffer
-	unsigned int data_length = rgba_data["length"].as<unsigned int>();
+	// Convert JavaScript typed array to C++ vector using Emscripten's built-in helper
+	std::vector<uint8_t> buffer = vecFromJSArray<uint8_t>(rgba_data);
 
 	// Validate data size
 	int channels = state->has_alpha ? 4 : 3;
 	size_t expected_size = (size_t)state->width * state->height * channels;
-	if (data_length != expected_size) {
+	if (buffer.size() != expected_size) {
 		// Data size mismatch
 		return 0;
 	}
-
-	// Copy data from JavaScript to C++ vector
-	std::vector<uint8_t> buffer(data_length);
-	val memory = val::module_property("HEAPU8")["buffer"];
-	val memoryView = Uint8Array.new_(memory, (uintptr_t)buffer.data(), data_length);
-	memoryView.call<void>("set", Uint8Array.new_(rgba_data));
 
 	WebPPicture pic;
 	if (!WebPPictureInit(&pic)) {
