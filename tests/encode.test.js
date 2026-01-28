@@ -2,7 +2,7 @@ import path from 'path'
 import fs from 'fs'
 import url from 'url'
 import { createCanvas, Image } from '@napi-rs/canvas'
-import { encoderVersion, encodeRGB, encodeRGBA, encode, encodeAnimation } from '../dist/esm'
+import { encoderVersion, encodeRGB, encodeRGBA, encode, createStreamingEncoder, addFrameToEncoder, finalizeEncoder, deleteEncoder } from '../dist/esm'
 import { matchBuffer } from './utils'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url))
@@ -86,10 +86,15 @@ describe('encode', () => {
 		).toBeTruthy()
 	})
 
-  test('encode animated webp', async () => {
+  test('encode animated webp (streaming)', async () => {
 		const canvas = createCanvas(100, 100)
 		const ctx = canvas.getContext('2d')
-    const frames = []
+
+    // Create streaming encoder
+    const handle = await createStreamingEncoder(100, 100, true)
+    expect(handle).toBeGreaterThan(0)
+
+    // Add frames one by one
     for (let x = 0; x <= 90; x += 10) {
       ctx.clearRect(0, 0, 100, 100)
       ctx.fillStyle = 'red'
@@ -97,39 +102,60 @@ describe('encode', () => {
       ctx.arc(x, 50, 10, 0, 2 * Math.PI)
       ctx.closePath()
       ctx.fill()
-      frames.push({
-        data: ctx.getImageData(0, 0, 100, 100).data,
-        duration: 1000
-      })
+      const frameData = new Uint8Array(ctx.getImageData(0, 0, 100, 100).data)
+      const success = await addFrameToEncoder(handle, frameData, 1000)
+      expect(success).toBe(true)
     }
-    const webpData = await encodeAnimation(100, 100, true, frames)
+
+    // Finalize and get result
+    const webpData = await finalizeEncoder(handle)
     expect(webpData).not.toBeNull()
     expect(webpData.length).toBeGreaterThan(0)
 	})
 
-  test('encode animated webp with options', async () => {
+  test('encode animated webp with options (streaming)', async () => {
 		const canvas = createCanvas(100, 100)
 		const ctx = canvas.getContext('2d')
-    const frames = []
-    for (let x = 0; x <= 90; x += 10) {
-      ctx.clearRect(0, 0, 100, 100)
-      ctx.fillStyle = 'red'
-      ctx.beginPath()
-      ctx.arc(x, 50, 10, 0, 2 * Math.PI)
-      ctx.closePath()
-      ctx.fill()
-      frames.push({
-        data: ctx.getImageData(0, 0, 100, 100).data,
-        duration: 1000
-      })
-    }
-    const webpData = await encodeAnimation(100, 100, true, frames, {
+
+    // Create streaming encoder with options
+    const handle = await createStreamingEncoder(100, 100, true, {
       minimizeSize: true,
       quality: 80,
       method: 4,
       loopCount: 0
     })
+    expect(handle).toBeGreaterThan(0)
+
+    // Add frames one by one
+    for (let x = 0; x <= 90; x += 10) {
+      ctx.clearRect(0, 0, 100, 100)
+      ctx.fillStyle = 'red'
+      ctx.beginPath()
+      ctx.arc(x, 50, 10, 0, 2 * Math.PI)
+      ctx.closePath()
+      ctx.fill()
+      const frameData = new Uint8Array(ctx.getImageData(0, 0, 100, 100).data)
+      const success = await addFrameToEncoder(handle, frameData, 1000)
+      expect(success).toBe(true)
+    }
+
+    // Finalize and get result
+    const webpData = await finalizeEncoder(handle)
     expect(webpData).not.toBeNull()
     expect(webpData.length).toBeGreaterThan(0)
 	})
+
+  test('streaming encoder cleanup on error', async () => {
+    // Create encoder
+    const handle = await createStreamingEncoder(100, 100, true)
+    expect(handle).toBeGreaterThan(0)
+
+    // Delete without finalizing (simulate error/abort)
+    await deleteEncoder(handle)
+
+    // Create another encoder to verify registry still works
+    const handle2 = await createStreamingEncoder(50, 50, true)
+    expect(handle2).toBeGreaterThan(handle)
+    await deleteEncoder(handle2)
+  })
 })
