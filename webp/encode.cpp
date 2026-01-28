@@ -113,6 +113,14 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 
 	StreamingEncoderState* state = it->second.get();
 
+	// Validate data size
+	int channels = state->has_alpha ? 4 : 3;
+	size_t expected_size = (size_t)state->width * state->height * channels;
+	if (rgba_data.size() != expected_size) {
+		// Data size mismatch - this indicates incorrect data passing
+		return 0;
+	}
+
 	WebPPicture pic;
 	if (!WebPPictureInit(&pic)) {
 		return 0;
@@ -122,10 +130,10 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 	pic.width = state->width;
 	pic.height = state->height;
 
-	int stride = (state->has_alpha ? 4 : 3) * state->width;
+	int stride = channels * state->width;
 	int success = state->has_alpha
-		? WebPPictureImportRGBA(&pic, (uint8_t*)rgba_data.c_str(), stride)
-		: WebPPictureImportRGB(&pic, (uint8_t*)rgba_data.c_str(), stride);
+		? WebPPictureImportRGBA(&pic, (uint8_t*)rgba_data.data(), stride)
+		: WebPPictureImportRGB(&pic, (uint8_t*)rgba_data.data(), stride);
 
 	if (!success) {
 		WebPPictureFree(&pic);
