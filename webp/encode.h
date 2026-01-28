@@ -14,15 +14,15 @@ struct SimpleWebPConfig
 
 struct AnimationEncoderOptions
 {
-    int minimize_size;  // 0 or 1 — enables frame diff optimization
-    int kmin;           // min keyframe distance (0 = use libwebp default)
-    int kmax;           // max keyframe distance (0 = use libwebp default)
-    float quality;      // 0-100
-    int lossless;       // 0 = lossy, 1 = lossless
-    int method;         // 0-6 (0=fast, 6=slowest/best compression)
-    int loop_count;     // 0 = infinite, N = loop N times
-    int alpha_quality;  // 0-100 (0=smallest, 100=lossless). Default: 100
-    int allow_mixed;    // 0 or 1 — allow mixing lossy+lossless per frame
+    int minimize_size = 0;    // 0 or 1 — enables frame diff optimization
+    int kmin = 0;             // min keyframe distance (0 = use libwebp default)
+    int kmax = 0;             // max keyframe distance (0 = use libwebp default)
+    float quality = 80.0f;    // 0-100
+    int lossless = 0;         // 0 = lossy, 1 = lossless
+    int method = 4;           // 0-6 (0=fast, 6=slowest/best compression)
+    int loop_count = 0;       // 0 = infinite, N = loop N times
+    int alpha_quality = 100;  // 0-100 (0=smallest, 100=lossless). Default: 100
+    int allow_mixed = 0;      // 0 or 1 — allow mixing lossy+lossless per frame
 };
 
 // Streaming encoder state - stored in global registry

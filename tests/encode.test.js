@@ -90,8 +90,18 @@ describe('encode', () => {
 		const canvas = createCanvas(100, 100)
 		const ctx = canvas.getContext('2d')
 
-    // Create streaming encoder
-    const handle = await createStreamingEncoder(100, 100, true)
+    // Create streaming encoder with default options
+    const handle = await createStreamingEncoder(100, 100, true, {
+      minimize_size: 0,
+      quality: 80,
+      method: 4,
+      loop_count: 0,
+      kmin: 0,
+      kmax: 0,
+      lossless: 0,
+      alpha_quality: 100,
+      allow_mixed: 0
+    })
     expect(handle).toBeGreaterThan(0)
 
     // Add frames one by one
@@ -117,12 +127,17 @@ describe('encode', () => {
 		const canvas = createCanvas(100, 100)
 		const ctx = canvas.getContext('2d')
 
-    // Create streaming encoder with options
+    // Create streaming encoder with options (field names must match C++ EMBIND binding)
     const handle = await createStreamingEncoder(100, 100, true, {
-      minimizeSize: true,
+      minimize_size: 1,
       quality: 80,
       method: 4,
-      loopCount: 0
+      loop_count: 0,
+      kmin: 0,
+      kmax: 0,
+      lossless: 0,
+      alpha_quality: 100,
+      allow_mixed: 0
     })
     expect(handle).toBeGreaterThan(0)
 
@@ -146,15 +161,27 @@ describe('encode', () => {
 	})
 
   test('streaming encoder cleanup on error', async () => {
+    const defaultOptions = {
+      minimize_size: 0,
+      quality: 80,
+      method: 4,
+      loop_count: 0,
+      kmin: 0,
+      kmax: 0,
+      lossless: 0,
+      alpha_quality: 100,
+      allow_mixed: 0
+    }
+
     // Create encoder
-    const handle = await createStreamingEncoder(100, 100, true)
+    const handle = await createStreamingEncoder(100, 100, true, defaultOptions)
     expect(handle).toBeGreaterThan(0)
 
     // Delete without finalizing (simulate error/abort)
     await deleteEncoder(handle)
 
     // Create another encoder to verify registry still works
-    const handle2 = await createStreamingEncoder(50, 50, true)
+    const handle2 = await createStreamingEncoder(50, 50, true, defaultOptions)
     expect(handle2).toBeGreaterThan(handle)
     await deleteEncoder(handle2)
   })
