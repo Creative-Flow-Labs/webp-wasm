@@ -35,7 +35,6 @@ struct StreamingEncoderState
     bool has_alpha;
     int timestamp_ms;
     int loop_count;
-    int allow_mixed;
 };
 
 emscripten::val encoder_version();

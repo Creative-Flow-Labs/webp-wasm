@@ -33,6 +33,24 @@ export declare const encodeAnimation: (
   frames: WebPAnimationFrame[],
   options?: AnimationEncoderOptions
 ) => Promise<Nullable<Uint8Array>>
+// Streaming encoder API
+export declare const createStreamingEncoder: (
+  width: number,
+  height: number,
+  hasAlpha: boolean,
+  options?: AnimationEncoderOptions
+) => Promise<number>
+export declare const addFrameToEncoder: (
+  handle: number,
+  rgbaData: Uint8Array,
+  durationMs: number
+) => Promise<boolean>
+export declare const finalizeEncoder: (
+  handle: number
+) => Promise<Nullable<Uint8Array>>
+export declare const deleteEncoder: (
+  handle: number
+) => Promise<void>
 export declare const decoderVersion: () => Promise<string>
 export declare const decodeRGB: (data: Uint8Array) => Promise<Nullable<WebPDecodedImageData>>
 export declare const decodeRGBA: (data: Uint8Array) => Promise<Nullable<WebPDecodedImageData>>

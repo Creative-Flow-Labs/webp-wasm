@@ -4,6 +4,7 @@ import type {
   AnimationEncoderOptions,
   WebPDecodedImageData,
   DecodedWebPAnimationFrame,
+  WebPAnimationFrame,
 } from './types'
 // @ts-ignore
 import Module from './webp-wasm'
@@ -68,8 +69,8 @@ export const encode = async (
   return module.encode(data, width, height, hasAlpha, webpConfig)
 }
 
-// Streaming encoder API (replaces batch encodeAnimation)
-// Returns an encoder handle (integer) for use with other streaming functions
+// Streaming encoder API - provides frame-by-frame control with lower memory usage
+// For simpler use cases, see encodeAnimation which processes all frames at once
 
 export const createStreamingEncoder = async (
   width: number,
@@ -124,14 +125,7 @@ export const deleteEncoder = async (
   module.deleteEncoder(handle)
 }
 
-// Frame type for batch animation encoding
-interface WebPAnimationFrame {
-  data: Uint8Array
-  duration: number  // in milliseconds
-}
-
 // Batch animation encoding API (processes all frames in one call)
-// More reliable than streaming API as it avoids cross-call state management
 export const encodeAnimation = async (
   width: number,
   height: number,
@@ -171,12 +165,6 @@ export const decodeRGBA = async (data: Uint8Array): Promise<Nullable<WebPDecoded
   const module = await getModule()
   return module.decodeRGBA(data)
 }
-
-// TODO:
-// export const decode = async (data: Uint8Array, hasAlpha: boolean) => {
-// 	const module = await getModule()
-// 	return module.decode(data, hasAlpha)
-// }
 
 export const decodeAnimation = async (
   data: Uint8Array,

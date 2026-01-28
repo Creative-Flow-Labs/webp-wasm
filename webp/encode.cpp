@@ -1,6 +1,5 @@
 #include <string.h>
 #include <vector>
-#include <stdio.h>
 #include "version.h"
 #include "encode.h"
 
@@ -19,13 +18,23 @@ val encoder_version()
 val encodeRGB(std::string rgb, int width, int height, int quality_factor) {
 	uint8_t* output;
 	size_t size = WebPEncodeRGB((uint8_t*)rgb.c_str(), width, height, 3 * width, quality_factor, &output);
-	return Uint8Array.new_(typed_memory_view(size, output));
+	if (size == 0 || output == nullptr) {
+		return val::null();
+	}
+	val result = Uint8Array.new_(typed_memory_view(size, output));
+	WebPFree(output);
+	return result;
 }
 
 val encodeRGBA(std::string rgba, int width, int height, int quality_factor) {
 	uint8_t* output;
 	size_t size = WebPEncodeRGBA((uint8_t*)rgba.c_str(), width, height, 4 * width, quality_factor, &output);
-	return Uint8Array.new_(typed_memory_view(size, output));
+	if (size == 0 || output == nullptr) {
+		return val::null();
+	}
+	val result = Uint8Array.new_(typed_memory_view(size, output));
+	WebPFree(output);
+	return result;
 }
 
 val encode(std::string data, int width, int height, bool has_alpha, SimpleWebPConfig config)
@@ -55,12 +64,20 @@ val encode(std::string data, int width, int height, bool has_alpha, SimpleWebPCo
 	}
 	pic.writer = WebPMemoryWrite;
 	pic.custom_ptr = &wrt;
-	has_alpha
+	int import_success = has_alpha
 		? WebPPictureImportRGBA(&pic, (uint8_t*)data.c_str(), width * 4)
 		: WebPPictureImportRGB(&pic, (uint8_t*)data.c_str(), width * 3);
+	if (!import_success)
+	{
+		WebPPictureFree(&pic);
+		WebPMemoryWriterClear(&wrt);
+		return val::null();
+	}
 	int success = WebPEncode(&webp_config, &pic);
 	if (!success)
 	{
+		WebPPictureFree(&pic);
+		WebPMemoryWriterClear(&wrt);
 		return val::null();
 	}
 	val encoded_data = Uint8Array.new_(typed_memory_view(wrt.size, wrt.mem));
@@ -79,7 +96,6 @@ int createStreamingEncoder(int width, int height, bool has_alpha, AnimationEncod
 	state->has_alpha = has_alpha;
 	state->timestamp_ms = 0;
 	state->loop_count = options.loop_count;
-	state->allow_mixed = options.allow_mixed;
 
 	// Init encoder options
 	WebPAnimEncoderOptions enc_options;
@@ -115,7 +131,6 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 {
 	auto it = g_encoders.find(handle);
 	if (it == g_encoders.end() || !it->second->encoder) {
-		printf("[addFrameToEncoder] Invalid handle or encoder: handle=%d\n", handle);
 		return 0;  // Invalid handle or encoder
 	}
 
@@ -124,17 +139,13 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 	// Validate data size
 	int channels = state->has_alpha ? 4 : 3;
 	size_t expected_size = (size_t)state->width * state->height * channels;
-	printf("[addFrameToEncoder] handle=%d, data_size=%zu, expected=%zu, width=%d, height=%d, channels=%d\n",
-		handle, rgba_data.size(), expected_size, state->width, state->height, channels);
 
 	if (rgba_data.size() != expected_size) {
-		printf("[addFrameToEncoder] Data size mismatch!\n");
 		return 0;
 	}
 
 	WebPPicture pic;
 	if (!WebPPictureInit(&pic)) {
-		printf("[addFrameToEncoder] WebPPictureInit failed\n");
 		return 0;
 	}
 
@@ -144,7 +155,6 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 
 	// Allocate picture memory like the working encode() function does
 	if (!WebPPictureAlloc(&pic)) {
-		printf("[addFrameToEncoder] WebPPictureAlloc failed\n");
 		WebPPictureFree(&pic);
 		return 0;
 	}
@@ -156,23 +166,11 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 		: WebPPictureImportRGB(&pic, (uint8_t*)rgba_data.c_str(), stride);
 
 	if (!success) {
-		printf("[addFrameToEncoder] WebPPictureImport failed, error_code=%d\n", pic.error_code);
 		WebPPictureFree(&pic);
 		return 0;
 	}
 
-	printf("[addFrameToEncoder] Calling WebPAnimEncoderAdd: timestamp=%d, config.quality=%.1f, config.lossless=%d, config.method=%d\n",
-		state->timestamp_ms, state->config.quality, state->config.lossless, state->config.method);
-
 	success = WebPAnimEncoderAdd(state->encoder, &pic, state->timestamp_ms, &state->config);
-
-	if (!success) {
-		const char* error = WebPAnimEncoderGetError(state->encoder);
-		printf("[addFrameToEncoder] WebPAnimEncoderAdd FAILED! pic.error_code=%d, encoder_error=%s\n",
-			pic.error_code, error ? error : "null");
-	} else {
-		printf("[addFrameToEncoder] WebPAnimEncoderAdd SUCCESS\n");
-	}
 
 	state->timestamp_ms += duration_ms;
 
