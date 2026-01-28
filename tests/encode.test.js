@@ -103,7 +103,7 @@ describe('encode', () => {
       ctx.closePath()
       ctx.fill()
       const imageData = ctx.getImageData(0, 0, 100, 100)
-      const success = await addFrameToEncoder(handle, imageData.data.buffer, 1000)
+      const success = await addFrameToEncoder(handle, new Uint8Array(imageData.data), 1000)
       expect(success).toBe(true)
     }
 
@@ -135,7 +135,7 @@ describe('encode', () => {
       ctx.closePath()
       ctx.fill()
       const imageData = ctx.getImageData(0, 0, 100, 100)
-      const success = await addFrameToEncoder(handle, imageData.data.buffer, 1000)
+      const success = await addFrameToEncoder(handle, new Uint8Array(imageData.data), 1000)
       expect(success).toBe(true)
     }
 

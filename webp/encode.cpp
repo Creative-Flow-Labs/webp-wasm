@@ -1,4 +1,5 @@
 #include <string.h>
+#include <vector>
 #include "version.h"
 #include "encode.h"
 
@@ -104,7 +105,7 @@ int createStreamingEncoder(int width, int height, bool has_alpha, AnimationEncod
 	return handle;
 }
 
-int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
+int addFrameToEncoder(int handle, val rgba_data, int duration_ms)
 {
 	auto it = g_encoders.find(handle);
 	if (it == g_encoders.end() || !it->second->encoder) {
@@ -113,13 +114,22 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 
 	StreamingEncoderState* state = it->second.get();
 
+	// Get length from the JavaScript typed array or ArrayBuffer
+	unsigned int data_length = rgba_data["length"].as<unsigned int>();
+
 	// Validate data size
 	int channels = state->has_alpha ? 4 : 3;
 	size_t expected_size = (size_t)state->width * state->height * channels;
-	if (rgba_data.size() != expected_size) {
-		// Data size mismatch - this indicates incorrect data passing
+	if (data_length != expected_size) {
+		// Data size mismatch
 		return 0;
 	}
+
+	// Copy data from JavaScript to C++ vector
+	std::vector<uint8_t> buffer(data_length);
+	val memory = val::module_property("HEAPU8")["buffer"];
+	val memoryView = Uint8Array.new_(memory, (uintptr_t)buffer.data(), data_length);
+	memoryView.call<void>("set", Uint8Array.new_(rgba_data));
 
 	WebPPicture pic;
 	if (!WebPPictureInit(&pic)) {
@@ -132,8 +142,8 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 
 	int stride = channels * state->width;
 	int success = state->has_alpha
-		? WebPPictureImportRGBA(&pic, (uint8_t*)rgba_data.data(), stride)
-		: WebPPictureImportRGB(&pic, (uint8_t*)rgba_data.data(), stride);
+		? WebPPictureImportRGBA(&pic, buffer.data(), stride)
+		: WebPPictureImportRGB(&pic, buffer.data(), stride);
 
 	if (!success) {
 		WebPPictureFree(&pic);
