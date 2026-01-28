@@ -102,8 +102,8 @@ describe('encode', () => {
       ctx.arc(x, 50, 10, 0, 2 * Math.PI)
       ctx.closePath()
       ctx.fill()
-      const frameData = new Uint8Array(ctx.getImageData(0, 0, 100, 100).data)
-      const success = await addFrameToEncoder(handle, frameData, 1000)
+      const imageData = ctx.getImageData(0, 0, 100, 100)
+      const success = await addFrameToEncoder(handle, imageData.data.buffer, 1000)
       expect(success).toBe(true)
     }
 
@@ -134,8 +134,8 @@ describe('encode', () => {
       ctx.arc(x, 50, 10, 0, 2 * Math.PI)
       ctx.closePath()
       ctx.fill()
-      const frameData = new Uint8Array(ctx.getImageData(0, 0, 100, 100).data)
-      const success = await addFrameToEncoder(handle, frameData, 1000)
+      const imageData = ctx.getImageData(0, 0, 100, 100)
+      const success = await addFrameToEncoder(handle, imageData.data.buffer, 1000)
       expect(success).toBe(true)
     }
 
