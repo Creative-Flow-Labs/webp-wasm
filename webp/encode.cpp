@@ -95,6 +95,11 @@ int createStreamingEncoder(int width, int height, bool has_alpha, AnimationEncod
 	state->config.method = options.method;
 	state->config.alpha_quality = options.alpha_quality;
 
+	// Validate config to ensure it's valid
+	if (!WebPValidateConfig(&state->config)) {
+		return 0;  // Invalid config
+	}
+
 	state->encoder = WebPAnimEncoderNew(width, height, &enc_options);
 	if (!state->encoder) {
 		return 0;  // 0 = invalid handle
@@ -130,6 +135,12 @@ int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms)
 	pic.use_argb = 1;
 	pic.width = state->width;
 	pic.height = state->height;
+
+	// Allocate picture memory like the working encode() function does
+	if (!WebPPictureAlloc(&pic)) {
+		WebPPictureFree(&pic);
+		return 0;
+	}
 
 	int stride = channels * state->width;
 	int success = state->has_alpha
