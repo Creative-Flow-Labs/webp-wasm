@@ -114,6 +114,39 @@ export const deleteEncoder = async (
   module.deleteEncoder(handle)
 }
 
+// Frame type for batch animation encoding
+interface WebPAnimationFrame {
+  data: Uint8Array
+  duration: number  // in milliseconds
+}
+
+// Batch animation encoding API (processes all frames in one call)
+// More reliable than streaming API as it avoids cross-call state management
+export const encodeAnimation = async (
+  width: number,
+  height: number,
+  hasAlpha: boolean,
+  frames: WebPAnimationFrame[],
+  options?: AnimationEncoderOptions
+): Promise<Nullable<Uint8Array>> => {
+  const module = await Module()
+
+  // Convert JS options to C++ struct format with defaults
+  const opts = {
+    minimize_size: options?.minimizeSize ? 1 : 0,
+    kmin: options?.kmin ?? 0,
+    kmax: options?.kmax ?? 0,
+    quality: options?.quality ?? 80,
+    lossless: options?.lossless ? 1 : 0,
+    method: options?.method ?? 4,
+    loop_count: options?.loopCount ?? 0,
+    alpha_quality: options?.alphaQuality ?? 100,
+    allow_mixed: options?.allowMixed ? 1 : 0,
+  }
+
+  return module.encodeAnimation(width, height, hasAlpha, frames, opts)
+}
+
 export const decoderVersion = async (): Promise<string> => {
   const module = await Module()
   return module.decoder_version()

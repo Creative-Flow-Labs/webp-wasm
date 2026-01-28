@@ -46,8 +46,11 @@ emscripten::val encodeRGBA(std::string rgba, int width, int height, int quality_
 
 emscripten::val encode(std::string data, int width, int height, bool use_alpha, SimpleWebPConfig config);
 
-// Streaming encoder API (replaces batch encodeAnimation)
+// Streaming encoder API (low memory, processes frames one at a time)
 int createStreamingEncoder(int width, int height, bool has_alpha, AnimationEncoderOptions options);
 int addFrameToEncoder(int handle, std::string rgba_data, int duration_ms);
 emscripten::val finalizeEncoder(int handle);
 void deleteEncoder(int handle);
+
+// Batch animation encoding API (processes all frames in one call)
+emscripten::val encodeAnimation(int width, int height, bool has_alpha, emscripten::val frames, AnimationEncoderOptions options);

@@ -26,11 +26,14 @@ EMSCRIPTEN_BINDINGS(module)
 	function("encodeRGBA", &encodeRGBA);
 	function("encode", &encode);
 
-	// Streaming encoder API (replaces batch encodeAnimation)
+	// Streaming encoder API (low memory, processes frames one at a time)
 	emscripten::function("createStreamingEncoder", &createStreamingEncoder);
 	emscripten::function("addFrameToEncoder", &addFrameToEncoder);
 	emscripten::function("finalizeEncoder", &finalizeEncoder);
 	emscripten::function("deleteEncoder", &deleteEncoder);
+
+	// Batch animation encoding API (processes all frames in one call)
+	emscripten::function("encodeAnimation", &encodeAnimation);
 
 	function("decoder_version", &decoder_version);
 	function("decodeRGB", &decodeRGB);

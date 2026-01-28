@@ -2,7 +2,7 @@ import path from 'path'
 import fs from 'fs'
 import url from 'url'
 import { createCanvas, Image } from '@napi-rs/canvas'
-import { encoderVersion, encodeRGB, encodeRGBA, encode, createStreamingEncoder, addFrameToEncoder, finalizeEncoder, deleteEncoder } from '../dist/esm'
+import { encoderVersion, encodeRGB, encodeRGBA, encode, createStreamingEncoder, addFrameToEncoder, finalizeEncoder, deleteEncoder, encodeAnimation } from '../dist/esm'
 import { matchBuffer } from './utils'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url))
@@ -187,4 +187,34 @@ describe('encode', () => {
     expect(handle2).toBeGreaterThan(handle)
     await deleteEncoder(handle2)
   })
+
+  test('encode animated webp (batch API)', async () => {
+		const canvas = createCanvas(100, 100)
+		const ctx = canvas.getContext('2d')
+
+    // Collect frames
+    const frames = []
+    for (let x = 0; x <= 90; x += 10) {
+      ctx.clearRect(0, 0, 100, 100)
+      ctx.fillStyle = 'red'
+      ctx.beginPath()
+      ctx.arc(x, 50, 10, 0, 2 * Math.PI)
+      ctx.closePath()
+      ctx.fill()
+      const imageData = ctx.getImageData(0, 0, 100, 100)
+      frames.push({
+        data: new Uint8Array(imageData.data),
+        duration: 100  // 100ms per frame
+      })
+    }
+
+    // Encode all frames at once using batch API
+    const webpData = await encodeAnimation(100, 100, true, frames, {
+      quality: 80,
+      method: 4,
+      loopCount: 0
+    })
+    expect(webpData).not.toBeNull()
+    expect(webpData.length).toBeGreaterThan(0)
+	})
 })
